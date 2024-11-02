@@ -406,3 +406,163 @@ __响应时间过程分析__
 
 2024年的今天，2/5/8原则已经不再适用，我们不可再抱着30年前的原则，用户对于响应时间的容忍度变得很低，尤其对于互联网产品，超过2秒钟就认为是很慢，从而放弃产品的使用。
 
+## 工具篇
+
+性能工具分为：性能测试工具 与 命令行工具。
+
+* 性能测试工具提供的功能比较全面，一般包括各种参数的配置，测试策略的配置，脚本编写，压测执行 和 结果分析，还包括分布式等能力。例如，loadrunner、JMeter、locust等。
+
+* 命令行工具比较简单：一般通过命令提供压测参数，在终端输出压测结果。例如：Apache AB（Apache Benchmark）、vegeta、go-stress-testing 等。
+
+
+### Locust
+
+#### 简介
+
+官网：https://locust.io/
+
+> An open source load testing tool.
+
+一个开源性能测试工具。
+
+> define user behaviour with python code, and swarm your system with millions of simultaneous users.
+
+使用 Python 代码来定义用户行为。用它可以模拟百万计的并发用户访问你的系统。
+
+![](./images/locust_2.31.3-dev_dark.png)
+
+
+#### 特点
+
+* 用代码定义用户行为
+
+无需笨重的用户界面或臃肿的XML。只需纯代码。
+
+* 分布式且可扩展
+
+Locust支持在多台机器上分布式运行负载测试，因此可用于模拟数百万的并发用户。
+
+* 经过验证且经过实战考验
+
+Locust已被用于模拟数百万的并发用户。战地游戏（Battlefield）的网页应用Battlelog就使用了Locust进行负载测试，因此可以说Locust是真正经过实战考验的；）。
+
+
+**相比较loadrunner和jmeter的优点：**
+
+Locust 完全基本 Python 编程语言，采用 Pure Python 描述测试脚本，并且 HTTP 请求完全基于 Requests 库。除了 HTTP/HTTPS 协议，Locust 也可以测试其它协议的系统，只需要采用Python调用对应的库进行请求描述即可。
+
+LoadRunner 和 Jmeter 这类采用进程和线程的测试工具，都很难在单机上模拟出较高的并发压力。Locust 的并发机制摒弃了进程和线程，采用协程（gevent）的机制。协程避免了系统级资源调度，由此可以大幅提高单机的并发能力。
+
+
+#### 安装
+
+github: https://github.com/locustio/locust/
+
+* pip安装
+
+```shell
+pip install locust
+```
+
+__安装依赖分析__
+
+这里简单介绍 Locust 都基于了哪些库。通过对依赖库的了解，对于locust的实现原理也可以窥探一二。
+
+> ConfigArgParse
+> flask
+> Flask-Cors
+> Flask-Login
+> gevent
+> geventhttpclient
+> msgpack
+> psutil
+> pywin32
+> pyzmq
+> requests
+> Werkzeug
+
+主要依赖库介绍：
+
+* flask 是 Python 的一个 Web 开发框架。
+
+* gevent 是在 Python 中实现协程的一个第三方库。协程，又称微线程（Coroutine）。使用gevent可以获得极高的并发性能。
+
+* MessagePack是一种高效的二进制序列化格式。它允许您像JSON一样在多种语言之间交换数据。但是它更快，更小。这个包提供了用于读写MessagePack数据的CPython绑定。
+
+* psutil（进程和系统实用程序）是一个跨平台库，用于检索Python中运行的进程和系统利用率（CPU、内存、磁盘、网络、传感器）的信息。它主要用于系统监视、分析和限制进程资源以及管理运行中的进程。
+
+* pyzmq 简介ZMQ是一套嵌入式的网络链接库,是一个基于内存的消息队列,工作起来更像是一个并发式的框架。
+
+* Requests 用来做 HTTP 接口测试。
+
+#### 示例
+
+__官方示例分析__
+
+```python
+from locust import HttpUser, task, between
+
+class QuickstartUser(HttpUser):
+    
+    wait_time = between(1, 2)
+
+    def on_start(self):
+        self.client.post("/login", json={"username":"foo", "password":"bar"})
+
+    @task
+    def hello_world(self):
+        self.client.get("/hello")
+        self.client.get("/world")
+
+    @task(3)
+    def view_item(self):
+        for item_id in range(10):
+            self.client.get(f"/item?id={item_id}", name="/item")
+
+```
+
+`QuickstartUser` 类继承`HttpUser`类，用于描述用户行为。
+
+我们声明了一个`on_start()`方法。当每个模拟用户启动时，将调用具有此名称的方法。
+
+`hello_world()` 方法表示一个用户为行。使用`@task()`装饰该方法为一个事务。`client.get()`用于指请求的路径`/hello` 和 `/world`。
+
+`@task()`指向一个定义的用户行为类，多个task之间可以通过参数设置比重。
+
+`wait_time`执行事务之间用户等待时间的，这里动态 1 ~ 2 秒之间。
+
+
+__自定义任务__
+
+编写简单的性能测试脚本，创建 loadfile.py 文件，通过 Python 编写性能测试脚本。
+
+```py
+from locust import HttpUser, task, between
+
+class QuickstartUser(HttpUser):
+    wait_time = between(0.1, 0.2)
+
+    @task
+    def hello_world(self):
+        self.client.get("/")
+```
+
+运行命令：
+
+```
+locust
+
+或
+
+locust -f loadfile.py
+```
+
+浏览器打开：http://127.0.0.1:8089
+
+![](./images/locust_start.png)
+
+输入用户并发数，启动时间，基础URL，运行时间（可选项），然后点击开始。
+
+查看运行过程
+
+![](./images/locust_running.png)
