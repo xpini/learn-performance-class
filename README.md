@@ -650,3 +650,424 @@ self.client.post("/login", json={"username":"foo", "password":"bar"})
 
 此外，还有与之对应的 `ont_stop()` 方法， 当每个模拟用户启动时，将调用具有此名称的方法。
 
+##### User 类
+
+`User`类代表系统的一种类型的用户/场景。在进行测试运行时，指定要模拟的并发用户数量，然后Locust将为每个用户创建一个实例。你可以给这些类/实例添加任何你喜欢的属性，但有一些对蝗虫有特殊意义：
+
+__wait_time 属性__
+
+`wait_time`方法很容易在每个任务执行之后引入延迟。如果没有指定wait_time，则下一个任务将在一个任务完成后立即执行。
+
+```py
+from locust import User, task, between
+
+class MyUser(User):
+    @task
+    def my_task(self):
+        print("executing my_task")
+
+     # 每次任务之间等待固定的 3 秒
+    wait_time = constant(1)
+    # 每次任务之间等待 0.5 到 10 秒之间的随机时间
+    wait_time = between(0.5, 10)
+    # 每秒最多执行 5 次任务
+    wait_time = constant_throughput(5)
+    # 每个任务之间至少间隔 2 秒
+    wait_time = constant_pacing(2)
+```
+
+* `constant`： 使每次任务之间都有一个 固定的时间间隔。
+* `between`： 让每个任务之间的等待时间是一个 随机值，范围在指定的最小值和最大值之间。
+* `constant_throughput`： 使任务的执行速率保持在 每秒最多 X 次任务。无论每个任务执行多久，Locust 会调整等待时间以维持这个执行速率。
+* `constant_pacing`： 确保每个任务之间的 最小间隔时间 是固定的，即确保任务间的等待时间不小于设定的 X 秒。这是 `constant_throughput` 的逆操作。
+
+
+__weight 和 fixed_count 属性__
+
+如果文件中存在多个用户类，并且在命令行中没有指定用户类，Locust将为每个用户类生成相同数量的用户。你还可以通过将其作为命令行参数传递，从相同的locustfile中指定要使用哪些用户类：
+
+```shell
+locust -f locust_file.py WebUser MobileUser
+```
+
+如果你希望模拟的某种类型用户数量多于其他类型用户，可以在这些类上设置`weight`（权重）属性。以下代码将使Locust生成的WebUser数量是MobileUser的3倍：
+
+```py
+class WebUser(User):
+    weight = 3
+    ...
+
+class MobileUser(User):
+    weight = 1
+    ...
+```
+
+`fixed_count` 参数在 Locust 中用于指定一个用户类应该生成的固定用户实例数量。
+
+这个参数非常有用，当你需要确保某些特定类型的用户（例如管理员或特定测试场景中的用户）在测试期间始终以固定数量存在时。
+
+在下面的示例中，只生成一个AdminUser实例，以便在独立于总用户数量的情况下，对请求数量进行更精确的控制，以完成一些特定工作。
+
+```py
+class AdminUser(User):
+    wait_time = constant(600)
+    fixed_count = 1
+
+    @task
+    def restart_app(self):
+        ...
+
+class WebUser(User):
+    ...
+```
+
+__host 属性__
+
+host属性是要测试的主机的URL前缀（例如https://google.com）。它会自动添加到请求中，因此你以执行self.client.get（"/"）等操作。
+
+```py
+from locust import User
+
+class MyUser(User):
+    host = "https://www.baidu.com"
+```
+
+##### HttpUser类
+
+HttpUser是最常用的User。它添加了一个用于发出HTTP请求的客户端属性。
+
+__client属性 / HttpSession__
+
+client是HttpSession的一个实例。HttpSession是requests.Session的一个子类/封装，因此它的功能都有详细的文档记录，并且对于许多人来说应该是熟悉的。HttpSession主要增加的功能是将请求结果报告给Locust（成功/失败、响应时间、响应长度、名称）。
+
+它包含了所有HTTP方法的方法：get、post、put、……
+
+就像requests.Session一样，它在请求之间保留cookies，因此它可以很容易地用于登录网站。
+
+发送一个POST请求，查看响应，并隐式地重用我们在第二个请求中获得的任何会话cookie
+
+```python
+response = self.client.post("/login", {"username":"testuser", "password":"secret"})
+print("响应状态码:", response.status_code)
+print("响应文本:", response.text)
+response = self.client.get("/my-profile")
+```
+
+HttpSession会捕获Session抛出的任何requests.RequestException（由连接错误、超时或类似原因引起），而不是返回一个状态码设置为0和内容设置为None的虚拟Response对象。
+
+__验证响应__
+
+如果HTTP响应代码是OK（<400），则请求被认为是成功的，但通常对响应进行一些额外的验证是很有用的。
+
+你可以通过使用catch_response参数、with语句和对response.failure()的调用来将请求标记为失败
+
+```python
+with self.client.get("/", catch_response=True) as response:
+    if response.text != "Success":
+        response.failure("得到了错误的响应")
+    elif response.elapsed.total_seconds() > 0.5:
+        response.failure("请求耗时过长")
+```
+
+你也可以将请求标记为成功，即使响应代码不好：
+
+```python
+with self.client.get("/does_not_exist/", catch_response=True) as response:
+    if response.status_code == 404:
+        response.success()
+```
+
+你甚至可以通过在with块外部抛出异常然后捕获它，或者抛出locust异常（如下面的示例所示并让Locust捕获它）来完全避免记录请求。
+
+```python
+from locust.exception import RescheduleTask
+...
+with self.client.get("/does_not_exist/", catch_response=True) as response:
+    if response.status_code == 404:
+        raise RescheduleTask()
+```
+
+__REST/JSON APIs__
+
+FastHttpUser提供了一个现成的rest方法，但你也可以自己来做：
+
+```python
+from json import JSONDecodeError
+...
+with self.client.post("/", json={"foo": 42, "bar": None}, catch_response=True) as response:
+    try:
+        if response.json()["greeting"] != "hello":
+            response.failure("在greeting中没有得到预期的值")
+    except JSONDecodeError:
+        response.failure("响应无法解码为JSON")
+    except KeyError:
+        response.failure("响应不包含预期的键'greeting'")
+```
+
+__请求分组__
+
+对于网站来说，其页面的URL包含某种动态参数是很常见的。通常将这些URL在用户统计信息中组合在一起是有意义的。这可以通过向HttpSession的不同请求方法传递一个name参数来实现。
+
+示例：
+
+```python
+# 这些请求的统计数据将被分组在：/blog/?id=[id]
+for i in range(10):
+    self.client.get("/blog?id=%i" % i, name="/blog?id=[id]")
+```
+
+当与包装Requests会话的库/SDK交互时，可能无法将参数传入请求函数，此时提供了另一种请求分组方式，即通过设置client.request_name属性。
+
+```python
+# 这些请求的统计数据将被分组在：/blog/?id=[id]
+self.client.request_name="/blog?id=[id]"
+for i in range(10):
+    self.client.get("/blog?id=%i" % i)
+self.client.request_name=None
+```
+
+如果你想用最少的样板代码链接多个分组，你可以使用client.rename_request()上下文管理器。
+
+```python
+@task
+def multiple_groupings_example(self):
+    # 这些请求的统计数据将被分组在：/blog/?id=[id]
+    with self.client.rename_request("/blog?id=[id]"):
+        for i in range(10):
+            self.client.get("/blog?id=%i" % i)
+
+    # 这些请求的统计数据将被分组在：/article/?id=[id]
+    with self.client.rename_request("/article?id=[id]"):
+        for i in range(10):
+            self.client.get("/article?id=%i" % i)
+```
+
+使用catch_response并直接访问request_meta，你甚至可以根据响应中的某些内容来重命名请求。
+
+```python
+with self.client.get("/", catch_response=True) as resp:
+    resp.request_meta["name"] = resp.json()["name"]
+```
+
+__HTTP代理设置__
+
+为了提高性能，我们通过将requests.Session的`trust_env`属性设置为False来配置requests，使其不在环境中查找HTTP代理设置。如果你不想这样做，你可以手动将`locust_instance.client.trust_env`设置为True。
+
+有关详细信息，请参阅requests的文档。
+https://requests.readthedocs.io/en/latest/api/#requests.Session.trust_env
+
+
+**连接重用**
+
+默认情况下，连接会被HttpUser重用，甚至跨任务运行。要避免连接重用，你可以这样做：
+
+```python
+self.client.get("/", headers={"Connection": "close"})
+self.client.get("/new_connection_here")
+```
+
+或者你可以关闭整个requests.Session对象（这也会删除cookies、关闭SSL会话等）。这有一些CPU开销（并且由于SSL重新协商等原因，下一个请求的响应时间会更长），所以除非你真的需要，否则不要使用它。
+
+```python
+self.client.get("/")
+self.client.close()
+self.client.get("/new_connection_here")
+```
+
+__连接池__
+
+由于每个HttpUser都会创建一个新的HttpSession，因此每个用户实例都有自己的连接池。这与真实用户（浏览器）与Web服务器交互的方式相似。
+
+如果你反而想共享连接，你可以使用一个池管理器。要做到这一点，请将pool_manager类属性设置为urllib3.PoolManager的一个实例。
+
+```python
+from locust import HttpUser
+from urllib3 import PoolManager
+
+class MyUser(HttpUser):
+    # 这个类的所有实例都将被限制为最多10个并发连接。
+    pool_manager = PoolManager(maxsize=10, block=True)
+```
+
+有关更多配置选项，请参阅urllib3的文档。
+https://urllib3.readthedocs.io/en/stable/reference/urllib3.poolmanager.html
+
+##### Tasks
+
+当启动负载测试时，将为每个模拟用户创建一个User类的实例，并且它们将在自己的greenlet中开始运行。当这些用户运行时，他们选择要执行的任务，休息一会儿，然后选择一个新任务，以此类推。
+
+
+__@task 装饰器__
+
+为User添加任务的最简单方式是使用task装饰器。
+
+```python
+from locust import User, task, constant
+
+class MyUser(User):
+    wait_time = constant(1)
+
+    @task
+    def my_task(self):
+        print("User instance (%r) executing my_task" % self)
+```
+@task 接受一个可选的weight参数，可以用来指定任务的执行比例。在以下示例中，task2被选中执行的可能性是task1的两倍：
+
+```python
+from locust import User, task, between
+
+class MyUser(User):
+    wait_time = between(5, 15)
+
+    @task(3)
+    def task1(self):
+        pass
+
+    @task(6)
+    def task2(self):
+        pass
+```
+
+__tasks 属性__
+
+另一种定义User任务的方式是通过设置tasks属性。
+
+tasks属性要么是一个Tasks列表，要么是一个<Task : int>字典，其中Task可以是Python可调用对象或TaskSet类。如果任务是普通的Python函数，它们将接收一个参数，即执行任务的User实例。
+
+以下是一个作为普通Python函数声明的User任务的示例：
+
+```python
+from locust import User, constant
+
+def my_task(user):
+    pass
+
+class MyUser(User):
+    tasks = [my_task]
+    wait_time = constant(1)
+```
+如果tasks属性被指定为一个列表，每次要执行任务时，将从tasks属性中随机选择。然而，如果tasks是一个字典——键是可调用对象，值是整数——要执行的任务将随机选择，但整数作为比例。所以，有一个像这样的任务：
+
+```python
+{my_task: 3, another_task: 1}
+```
+my_task被执行的可能性是another_task的3倍。
+
+内部地，上述字典实际上会被展开成一个列表（并且tasks属性被更新），看起来像这样：
+
+```python
+[my_task, my_task, my_task, another_task]
+```
+然后使用Python的random.choice()从列表中挑选任务。
+
+__@tag 装饰器__
+
+通过使用@tag装饰器给任务打标签，你可以在使用--tags和--exclude-tags参数时挑剔地选择哪些任务在测试期间执行。考虑以下示例：
+
+```python
+from locust import User, constant, task, tag
+
+class MyUser(User):
+    wait_time = constant(1)
+
+    @tag('tag1')
+    @task
+    def task1(self):
+        pass
+
+    @tag('tag1', 'tag2')
+    @task
+    def task2(self):
+        pass
+
+    @tag('tag3')
+    @task
+    def task3(self):
+        pass
+
+    @task
+    def task4(self):
+        pass
+```
+如果你用--tags tag1开始这个测试，那么在测试期间只有task1和task2会被执行。如果你用--tags tag2 tag3开始它，只有task2和task3会被执行。
+
+--exclude-tags的行为完全相反。所以，如果你用--exclude-tags tag3开始测试，只有task1、task2和task4会被执行。排除总是胜过包含，所以如果一个任务有一个你已经包含的标签和一个你已经排除的标签，它将不会被执行。
+
+
+##### Event 
+
+如果你想在测试中运行一些设置代码，通常只需将其放在locustfile的模块级别就足够了，但有时你需要在运行的特定时间点做一些事情。为了满足这一需求，Locust提供了事件钩子。
+
+__`test_start` 和 `test_stop`__
+
+如果你需要在负载测试的开始或停止时运行一些代码，你应该使用test_start和test_stop事件。你可以在locustfile的模块级别设置这些事件的监听器：
+
+```python
+from locust import events
+
+@events.test_start.add_listener
+def on_test_start(environment, **kwargs):
+    print("A new test is starting")
+
+@events.test_stop.add_listener
+def on_test_stop(environment, **kwargs):
+    print("A new test is ending")
+```
+
+__init__
+
+init事件在每个Locust进程的开始时触发。这在分布式模式下特别有用，每个工作进程（而不是每个用户）都需要有机会进行一些初始化。例如，假设你有一些全局状态，从这个进程生成的所有用户都需要：
+
+```python
+from locust import events
+from locust.runners import MasterRunner
+
+@events.init.add_listener
+def on_locust_init(environment, **kwargs):
+    if isinstance(environment.runner, MasterRunner):
+        print("I'm on master node")
+    else:
+        print("I'm on a worker or standalone node")
+```
+
+__其他事件__
+
+请参阅使用事件钩子扩展Locust以了解其他事件以及如何使用它们的更多示例。
+https://docs.locust.io/en/stable/extending-locust.html#extending-locust
+
+
+##### 织你测试代码
+
+重要的是要记住，locustfile.py只是一个普通的Python模块，由Locust导入。从这个模块中，你可以像在任何Python程序中一样自由地导入其他Python代码。当前工作目录会自动添加到python的sys.path中，因此任何位于工作目录中的Python文件/模块/包都可以使用python import语句导入。
+
+对于小型测试，将所有测试代码都保留在单个locustfile.py中应该可以正常工作，但对于更大的测试套件，你可能希望将代码分割到多个文件和目录中。
+
+你如何组织测试源代码当然完全取决于你，但我们建议你遵循Python的最佳实践。这里是一个虚构的Locust项目的示例文件结构：
+
+```shell
+common/
+  __init__.py
+  auth.py
+  config.py
+locustfile.py
+requirements.txt
+```
+
+具有多个locustfiles的项目也可以将它们保存在单独的子目录中：
+
+```shell
+common/
+  __init__.py
+  auth.py
+  config.py
+my_locustfiles/
+  api.py
+  website.py
+requirements.txt
+```
+
+使用上述任何项目结构，你的locustfile都可以使用以下方式导入通用库：
+
+```python
+import common.auth
+```
