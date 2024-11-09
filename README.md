@@ -417,7 +417,9 @@ __响应时间过程分析__
 
 ### Locust
 
-#### 简介
+#### 基础使用
+
+##### 简介
 
 官网：https://locust.io/
 
@@ -432,29 +434,45 @@ __响应时间过程分析__
 ![](./images/locust_2.31.3-dev_dark.png)
 
 
-#### 特点
+##### 特点
 
 * 用代码定义用户行为
 
 无需笨重的用户界面或臃肿的XML。只需纯代码。
 
+你可以将常规Python库导入到测试中，并且使用Locust的可插拔架构，它具有无限的可扩展性。与使用大多数其他工具不同，你的测试设计将永远不会受到GUI或特定于领域的语言的限制。
+
+* 支持命令行和GUI两种模式
+
+可以从命令行或使用基于web的UI运行locust测试。UI界面可以更友好的实时查看吞吐量、响应时间和错误，并/或导出以供以后分析。命令行模式更易于集成的 CI/CD 工具。
+
 * 分布式且可扩展
 
 Locust支持在多台机器上分布式运行负载测试，因此可用于模拟数百万的并发用户。
+
+* 能够测试任何系统
+
+虽然locust主要工作与网站/服务，它可以用来测试几乎任何系统或协议。只需为您想要测试的内容编写一个客户端，或者探索社区创建的一些客户端。
+
+插件项目：https://github.com/SvenskaSpel/locust-plugins
 
 * 经过验证且经过实战考验
 
 Locust已被用于模拟数百万的并发用户。战地游戏（Battlefield）的网页应用Battlelog就使用了Locust进行负载测试，因此可以说Locust是真正经过实战考验的；）。
 
+* 支持自定义
 
-**相比较loadrunner和jmeter的优点：**
+locust很小，非常灵活，我们打算保持这种方式。如果你想发送报告数据到你喜欢的数据库和绘图系统，包装调用一个REST API来处理你的系统的细节，或者运行一个完全自定义的负载模式，没有什么能阻止你！
+
+
+相比较loadrunner和jmeter的优点：
 
 Locust 完全基本 Python 编程语言，采用 Pure Python 描述测试脚本，并且 HTTP 请求完全基于 Requests 库。除了 HTTP/HTTPS 协议，Locust 也可以测试其它协议的系统，只需要采用Python调用对应的库进行请求描述即可。
 
 LoadRunner 和 Jmeter 这类采用进程和线程的测试工具，都很难在单机上模拟出较高的并发压力。Locust 的并发机制摒弃了进程和线程，采用协程（gevent）的机制。协程避免了系统级资源调度，由此可以大幅提高单机的并发能力。
 
 
-#### 安装
+##### 安装
 
 github: https://github.com/locustio/locust/
 
@@ -495,46 +513,9 @@ __安装依赖分析__
 
 * Requests 用来做 HTTP 接口测试。
 
-#### 示例
+##### 示例
 
-__官方示例分析__
-
-```python
-from locust import HttpUser, task, between
-
-class QuickstartUser(HttpUser):
-    
-    wait_time = between(1, 2)
-
-    def on_start(self):
-        self.client.post("/login", json={"username":"foo", "password":"bar"})
-
-    @task
-    def hello_world(self):
-        self.client.get("/hello")
-        self.client.get("/world")
-
-    @task(3)
-    def view_item(self):
-        for item_id in range(10):
-            self.client.get(f"/item?id={item_id}", name="/item")
-
-```
-
-`QuickstartUser` 类继承`HttpUser`类，用于描述用户行为。
-
-我们声明了一个`on_start()`方法。当每个模拟用户启动时，将调用具有此名称的方法。
-
-`hello_world()` 方法表示一个用户为行。使用`@task()`装饰该方法为一个事务。`client.get()`用于指请求的路径`/hello` 和 `/world`。
-
-`@task()`指向一个定义的用户行为类，多个task之间可以通过参数设置比重。
-
-`wait_time`执行事务之间用户等待时间的，这里动态 1 ~ 2 秒之间。
-
-
-__自定义任务__
-
-编写简单的性能测试脚本，创建 loadfile.py 文件，通过 Python 编写性能测试脚本。
+编写简单的性能测试脚本，创建 baidufile.py 文件，通过 Python 编写性能测试脚本。
 
 ```py
 from locust import HttpUser, task, between
@@ -550,11 +531,11 @@ class QuickstartUser(HttpUser):
 运行命令：
 
 ```
-locust
+locust    # 脚本默认命名为 locustfile
 
 或
 
-locust -f loadfile.py
+locust -f baidufile.py  # 指定脚本的名称
 ```
 
 浏览器打开：http://127.0.0.1:8089
@@ -566,3 +547,106 @@ locust -f loadfile.py
 查看运行过程
 
 ![](./images/locust_running.png)
+
+
+#### 脚本编写
+
+##### 编写一个locust脚本
+
+locust 脚本默认命名为 `locustfile.py`， 
+
+```python
+import time
+from locust import HttpUser, task, between
+
+
+class QuickstartUser(HttpUser):
+    wait_time = between(1, 5)
+
+    @task
+    def hello_world(self):
+        self.client.get("/hello")
+        self.client.get("/world")
+
+    @task(3)
+    def view_items(self):
+        for item_id in range(10):
+            self.client.get(f"/item?id={item_id}", name="/item")
+            time.sleep(1)
+
+    def on_start(self):
+        self.client.post("/login", json={"username": "foo", "password": "bar"})
+```
+
+* `QuickstartUser` 类继承`HttpUser`类，用于模拟将要测试的用户。
+
+> HttpUser类为每个用户提供了一个名为client的属性，该属性是一个HttpSession实例，可用于向我们想要加载测试的目标系统发送HTTP请求。当测试开始时，locust会为它模拟的每个用户创建一个该类的实例，并且每个用户都将在自己的绿色gevent线程中开始运行。
+> 一个文件要成为有效的`locustfile`文件，必须至少包含一个从`User`继承的类。
+
+
+* `wait_time` 每个任务执行之后的等待时间的，这里动态 1 ~ 2 秒之间。
+
+* `@task`定义任务。
+```py
+    @task
+    def hello_world(self):
+        self.client.get("/hello")
+        self.client.get("/world")
+```
+
+带有`@task`装饰器的方法是的locust文件的核心。对于每个运行的用户（User），Locust会为其创建一个绿色线程（`协程`或`微线程`），该线程将调用这些方法。
+
+> 任务中的代码是按顺序执行的（它只是普通的Python代码），因此，只有在收到/hello响应后才会调用/world。
+
+
+* 虚拟用户数分配
+
+```py
+    @task
+    def hello_world(self):
+        ...
+
+    @task(3)
+    def view_items(self):
+        ...
+```
+
+我们通过用`@task`装饰两个方法来声明两个任务，其中一个被赋予了更高的权重(3)。当我们的`QuickstartUser`运行时，它将选择一个声明的任务-在本例中是`hello_world`或`view_items` -并执行它。任务是随机挑选的，但你可以给它们不同的权重。上述配置将使Locust选择`view_items`的可能性是选择`hello_world`的三倍。当任务完成执行后，User将在指定的等待时间内休眠（在本例中为1到5秒）。然后它会选择一个新的任务。
+
+> 注意，只有用`@task`装饰的方法才会被选中，因此您可以按照自己喜欢的方式定义自己的内部助手方法。
+
+* HTTP请求
+
+```py
+
+self.client.get("/hello")
+self.client.post("/login", json={"username":"foo", "password":"bar"})
+```
+
+`self.client` 属性使得可以进行 HTTP 请求，这些请求将被 Locust 记录下来。有关如何进行其他类型的请求、验证响应等信息，
+
+> 注意：HttpUser不是一个真正的浏览器，因此不会解析HTML响应来加载资源或呈现页面。但它会跟踪cookie。
+
+* 请求分组
+
+```py
+  @task(3)
+  def view_items(self):
+    for item_id in range(10):
+        self.client.get(f"/item?id={item_id}", name="/item")
+        time.sleep(1)
+```
+
+在`view_items`任务中，我们通过使用可变查询参数加载10个不同的url。为了避免在Locust的统计数据中得到10个单独的条目——因为统计数据是按URL分组的——我们使用`name`参数将所有这些请求分组在一个名为`/item`的条目下。
+
+* 前置方法
+
+```py
+  def on_start(self):
+    ...
+```
+
+我们声明了一个`on_start()`方法。当每个模拟用户启动时，将调用具有此名称的方法。
+
+此外，还有与之对应的 `ont_stop()` 方法， 当每个模拟用户启动时，将调用具有此名称的方法。
+
