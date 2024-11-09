@@ -1071,3 +1071,309 @@ requirements.txt
 ```python
 import common.auth
 ```
+
+#### 命令行工具
+
+Locust主要通过命令行参数配置。
+
+* 查看帮助
+
+```shell
+locust --help
+```
+
+##### 参数说明
+
+以下是Locust命令行选项的表格形式，包括每个选项的说明：
+
+| 选项                                         | 说明                                                                                                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-h, --help`                                 | 显示帮助信息并退出                                                                                                                                            |
+| `-f <filename>, --locustfile <filename>`     | 包含测试的Python文件或模块，例如`my_test.py`。接受多个逗号分隔的.py文件、包名/目录或远程locustfile的URL。默认为`locustfile`。                                 |
+| `--config <filename>`                        | 读取额外配置的文件。                                                                                                                                          |
+| `-H <base url>, --host <base url>`           | 要进行负载测试的主机，格式如下：https://www.example.com                                                                                                       |
+| `-u <int>, --users <int>`                    | 同时运行的Locust用户的最大数量。主要与`--headless`或`--autostart`一起使用。可以在测试期间通过键盘输入w, W（生成1, 10个用户）和s, S（停止1, 10个用户）来更改。 |
+| `-r <float>, --spawn-rate <float>`           | 用户生成速率（每秒用户数）。主要与`--headless`或`--autostart`一起使用。                                                                                       |
+| `-t <time string>, --run-time <time string>` | 指定运行时间后停止，例如(300s, 20m, 3h, 1h30m等)。仅与`--headless`或`--autostart`一起使用。默认为永久运行。                                                   |
+| `-l, --list`                                 | 显示可能的用户类列表并退出。                                                                                                                                  |
+| `--config-users [CONFIG_USERS ...]`          | 用户配置，可以是JSON字符串或文件。可以提供参数列表或JSON配置数组。                                                                                            |
+
+**Web UI选项：**
+| 选项                                         | 说明                                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `--web-host <ip>`                            | 绑定Web界面的主机。默认为`*`（所有接口）。                                                                   |
+| `--web-port <port number>, -P <port number>` | 运行Web主机的端口。                                                                                          |
+| `--headless`                                 | 禁用Web界面，并立即开始测试。使用`-u`和`-t`控制用户数量和运行时间。                                          |
+| `--autostart`                                | 立即开始测试（像`--headless`，但不禁用Web UI）。                                                             |
+| `--autoquit <seconds>`                       | 在运行完成后的X秒后完全退出Locust。仅与`--autostart`一起使用。默认为保持Locust运行，直到你使用CTRL+C关闭它。 |
+| `--web-login`                                | 使用登录页面保护Web界面。                                                                                    |
+| `--tls-cert <filename>`                      | 用于HTTPS服务的TLS证书的可选路径。                                                                           |
+| `--tls-key <filename>`                       | 用于HTTPS服务的TLS私钥的可选路径。                                                                           |
+| `--class-picker`                             | 在Web界面中启用选择框，以从所有可用的用户类和形状类中选择。                                                  |
+
+**Master选项：**
+| 选项                               | 说明                                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------ |
+| `--master`                         | 作为主节点启动Locust，工作节点连接到它。                                             |
+| `--master-bind-host <ip>`          | 主节点监听的IP地址。默认为*（所有可用接口）。                                        |
+| `--master-bind-port <port number>` | 主节点监听的端口。默认为5557。                                                       |
+| `--expect-workers <int>`           | 延迟开始测试，直到连接到这个数量的工作节点（仅与`--headless/--autostart`组合使用）。 |
+| `--expect-workers-max-wait <int>`  | 主节点等待工作节点连接的时间，直到放弃。默认为永远等待。                             |
+| `--enable-rebalancing`             | 如果在测试运行期间添加或移除新工作节点，则重新分配用户。实验性功能。                 |
+
+**Worker选项：**
+| 选项                          | 说明                                                                                                                                                        |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--worker`                    | 设置Locust以分布式模式运行，此进程作为工作节点。可以与设置`--locustfile`为`-`结合使用，从主节点下载它。                                                     |
+| `--processes <int>`           | Locust进程的分叉次数，以启用系统使用。与`--worker`标志结合使用，或让它自动设置`--worker`和`--master`标志的一体化解决方案。Windows系统上不可用。实验性功能。 |
+| `--master-host <hostname>`    | 要连接的Locust主节点的主机名。默认为127.0.0.1。                                                                                                             |
+| `--master-port <port number>` | 在主节点上连接的端口。默认为5557。                                                                                                                          |
+
+**标签选项：**
+| 选项                                         | 说明                                                         |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `-T [<tag> ...], --tags [<tag> ...]`         | 要在测试中包括的标签列表，只有这样的任务才会被执行。         |
+| `-E [<tag> ...], --exclude-tags [<tag> ...]` | 要从测试中排除的标签列表，只有没有匹配标签的任务才会被执行。 |
+
+**请求统计信息选项：**
+| 选项                 | 说明                                                                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--csv <filename>`   | 以CSV格式将请求统计信息存储在文件中。设置此选项将生成三个文件：`<filename>_stats.csv`, `<filename>_stats_history.csv`和`<filename>_failures.csv`。 |
+| `--csv-full-history` | 将每个统计条目以CSV格式存储到`_stats_history.csv`文件中。必须同时指定`--csv`参数以启用此功能。                                                     |
+| `--print-stats`      | 在UI运行期间启用定期打印请求统计信息。                                                                                                             |
+| `--only-summary`     | 在`--headless`运行期间禁用定期打印请求统计信息。                                                                                                   |
+| `--reset-stats`      | 生成完成后重置统计信息。在分布式模式运行时，需要在主节点和工作节点上都设置。                                                                       |
+| `--html <filename>`  | 将HTML报告存储在指定的文件路径中。                                                                                                                 |
+| `--json`             | 将最终统计信息以JSON格式打印到stdout。与`--headless`和`--skip-log`一起使用，仅输出json数据非常有用。                                               |
+
+**日志记录选项：**
+| 选项                             | 说明                                                                 |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `--skip-log-setup`               | 禁用Locust的日志记录设置。相反，配置由Locust测试或Python默认值提供。 |
+| `--loglevel <level>, -L <level>` | 选择DEBUG/INFO/WARNING/ERROR/CRITICAL之间的日志级别。默认为INFO。    |
+| `--logfile <filename>`           | 日志文件的路径。如果未设置，日志将输出到stderr。                     |
+
+**其他选项：**
+| 选项                                   | 说明                                                                                                    |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `--show-task-ratio`                    | 打印用户类的任务执行比例表。如果某些类定义了非零fixed_count属性，请与非零`--user`选项一起使用。         |
+| `--show-task-ratio-json`               | 打印用户类的任务执行比例的JSON数据。如果某些类定义了非零fixed_count属性，请与非零`--user`选项一起使用。 |
+| `--version, -V`                        | 显示程序的版本号并退出。                                                                                |
+| `--exit-code-on-error <int>`           | 设置当测试结果包含任何失败或错误时使用的进程退出代码。默认为1。                                         |
+| `-s <number>, --stop-timeout <number>` | 等待模拟用户完成任何执行任务的秒数，然后退出。默认为立即终止。在分布式运行时，这只需要在主节点上指定。  |
+| `--equal-weights`                      | 使用等量分布的任务权重，覆盖locustfile中指定的权重。                                                    |
+
+**用户类：**
+| 选项                      | 说明                                                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<UserClass1 UserClass2>` | 在命令行的末尾，你可以列出要使用的用户类（可用用户类可以通过`--list`列出）。也可以使用环境变量`LOCUST_USER_CLASSES`来指定用户类。默认是使用所有可用的用户类。 |
+
+**示例：**
+| 命令                                                                   | 说明                                                                                                      |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `locust -f my_test.py -H https://www.example.com`                      | 运行`my_test.py`测试脚本，测试目标为`https://www.example.com`。                                           |
+| `locust --headless -u 100 -t 20m --processes 4 MyHttpUser AnotherUser` | 以无头模式运行测试，最多100个用户，运行时间20分钟，分叉4个进程，并指定`MyHttpUser`和`AnotherUser`用户类。 |
+
+更多详细信息，包括如何通过文件或环境变量设置选项，请参见文档：[Locust Configuration](https://docs.locust.io/en/stable/configuration.html)。
+
+
+##### 无界面模式
+
+你可以通过使用`--headless`标志与`-u/--users`和`-r/--spawn-rate`一起运行Locust，而不需要Web界面：
+
+```shell
+locust -f locust_files/my_locust_file.py --headless -u 100 -r 5
+
+[2021-07-24 10:41:10,947] .../INFO/locust.main: No run time limit set, use CTRL+C to interrupt.
+[2021-07-24 10:41:10,947] .../INFO/locust.main: Starting Locust 2.32.2
+[2021-07-24 10:41:10,949] .../INFO/locust.runners: Ramping to 100 users using a 5.00 spawn rate
+Name              # reqs      # fails  |     Avg     Min     Max  Median  |   req/s failures/s
+----------------------------------------------------------------------------------------------
+
+GET /hello             1     0(0.00%)  |     115     115     115     115  |    0.00    0.00
+GET /world             1     0(0.00%)  |     119     119     119     119  |    0.00    0.00
+----------------------------------------------------------------------------------------------
+
+Aggregated             2     0(0.00%)  |     117     115     119     117  |    0.00    0.00
+```
+即使在无头模式下，你也可以在测试运行时更改用户数量。按`w`增加1个用户，或按`W`增加10个用户。按`s`减少1个用户，或按`S`减少10个用户。
+
+__为测试设置时间限制__
+
+要指定测试的运行时间，请使用`-t/--run-time`：
+
+```shell
+locust --headless -u 100 --run-time 1h30m
+locust --headless -u 100 --run-time 60 # default unit is seconds
+```
+Locust将在时间到达后关闭。时间从测试开始时计算（而不是从增加用户完成时开始）。
+
+__允许任务在关闭时完成迭代__
+
+默认情况下，Locust会立即停止你的任务（甚至不等待请求完成）。要给运行中的任务一些时间来完成它们的迭代，请使用`-s/--stop-timeout`：
+
+```shell
+locust --headless --run-time 1h30m --stop-timeout 10s
+```
+
+__控制Locust进程的退出代码__
+
+默认情况下，如果有任何失败的样本，locust进程将给出1的退出代码（使用`--exit-code-on-error`来更改该行为）。
+
+你还可以通过设置Environment实例的process_exit_code在你的测试脚本中手动控制退出代码。这在作为自动化/计划测试运行Locust时特别有用，例如作为CI管道的一部分。
+
+以下是一个示例，如果满足以下任何条件，它将把退出代码设置为非零：
+
+- 超过1%的请求失败
+- 平均响应时间超过200毫秒
+- 响应时间的95百分位数大于800毫秒
+
+```python
+import logging
+from locust import events
+
+@events.quitting.add_listener
+def _(environment, **kw):
+    if environment.stats.total.fail_ratio > 0.01:
+        logging.error("Test failed due to failure ratio > 1%")
+        environment.process_exit_code = 1
+    elif environment.stats.total.avg_response_time > 200:
+        logging.error("Test failed due to average response time ratio > 200 ms")
+        environment.process_exit_code = 1
+    elif environment.stats.total.get_response_time_percentile(0.95) > 800:
+        logging.error("Test failed due to 95th percentile response time > 800 ms")
+        environment.process_exit_code = 1
+    else:
+        environment.process_exit_code = 0
+```
+注意，这段代码可以放在`locustfile.py`或任何其他在`locustfile`中导入的文件中。
+
+
+#### 分布式运行
+
+单个进程运行Locust可以模拟相当高的吞吐量。对于简单的测试计划和小负载，它可以每秒发出超过一千个请求，如果使用FastHttpUser，可能会超过一万个请求。
+
+但是，如果你的测试计划复杂，或者你想要施加更大的负载，你需要扩展到多个进程，甚至可能是多个机器。幸运的是，Locust开箱即用地支持分布式运行。
+
+为此，你需要启动一个带有`--master`标志的Locust实例，以及一个或多个带有`--worker`标志的实例。主实例运行Locust的Web界面，并告诉工作节点何时生成/停止用户。工作实例运行你的用户并将统计信息发送回主节点。主实例本身不运行任何用户。
+
+为了简化启动，你可以使用`--processes`标志。它将启动一个主进程和指定数量的工作进程。它也可以与`--worker`结合使用，这样它只会启动工作节点。此功能依赖于`fork()`，因此在Windows上无法使用。
+
+> 注意
+> 由于Python无法充分利用每个进程的多个核心（参见GIL），你需要为每个处理器核心运行一个工作实例，以便访问所有计算能力。
+
+> 注意
+> 每个工作节点可以运行的用户数量几乎没有限制。Locust/gevent可以每个进程运行数千甚至数万个用户，只要它们的总请求速率（RPS）不太高。
+
+如果Locust接近耗尽CPU资源，它将记录一个警告。如果没有警告，但你仍然无法生成预期的负载，那么问题可能是请求速率不足。
+
+__单机__
+
+启动一个主节点和4个工作进程非常简单：
+
+```shell
+locust --processes 4
+```
+你甚至可以自动检测机器中的逻辑核心数量，并为每个核心启动一个工作节点：
+
+```shell
+locust --processes -1
+```
+
+
+__多台机器__
+
+在一台机器上以主模式启动Locust：
+
+```shell
+locust -f .\baidufile.py --master
+
+[2024-11-09 16:07:54,984] LAPTOP-29068220/INFO/locust.main: Starting Locust 2.32.1
+Error resolving address: [Errno 11001] getaddrinfo failed
+[2024-11-09 16:07:55,029] LAPTOP-29068220/INFO/locust.main: Starting web interface at http://localhost:8089 (accepting connections from all network interfaces)
+[2024-11-09 16:09:40,059] LAPTOP-29068220/INFO/locust.runners: fnngjdeMacBook-Pro.local_b5522632a57d49f7b68e556150ed2fa6 (index 0) reported as ready. 1 workers connected.
+[2024-11-09 16:09:40,059] LAPTOP-29068220/INFO/locust.runners: fnngjdeMacBook-Pro.local_16263ab894d34f0f8d7001fba8674ea9 (index 1) reported as ready. 2 workers connected.
+[2024-11-09 16:09:40,060] LAPTOP-29068220/INFO/locust.runners: fnngjdeMacBook-Pro.local_e29d2512417f4a32a6c60e65eb9100af (index 2) reported as ready. 3 workers connected.
+[2024-11-09 16:09:40,060] LAPTOP-29068220/INFO/locust.runners: fnngjdeMacBook-Pro.local_c29f185756594353aacd207b28e1b203 (index 3) reported as ready. 4 workers connected.
+```
+
+然后在每个工作机器上：
+
+```shell
+locust -f - --worker --master-host 192.168.0.5 --processes 4       
+
+[2024-11-09 16:09:38,882] fnngjdeMacBook-Pro/INFO/locust.main: Starting Locust 2.32.2
+```
+
+`192.168.0.5` 是master主节点的IP地址。
+
+> 注意
+> `-f -`参数告诉Locust从主节点获取locustfile，而不是从其本地文件系统获取。此功能是在Locust 2.23.0中引入的。
+
+运行性能测试，工作机的CPU占用。
+
+![](./images/worker_cpu.png)
+
+通过查看CPU占用，基本与 `--processes 4` 的配置吻合。
+
+
+__多台机器，使用locust-swarm__
+
+当你对locustfile进行更改时，你需要重新启动所有Locust进程。locust-swarm为你自动化了这一过程。它还解决了工作节点到主节点的防火墙/网络访问问题，使用SSH隧道（如果主节点在你的工作站上而工作节点在某个数据中心运行，这通常是一个问题）。
+
+* 安装命令
+
+```shell
+pip install locust-swarm
+```
+
+* 架构图
+
+```
+                         +--------------------------+
+                         |      控制节点（Control） |
+                         |      使用 locust-swarm    |
+                         +-------------+------------+
+                                       |
+           +---------------------------+---------------------------+
+           |                           |                           |
++----------v---------+     +-----------v---------+     +-----------v---------+
+|     主节点（Master）|     |   从节点1（Worker） |     |   从节点2（Worker） |
+| locust 主节点服务   |     | locust 从节点服务   |     | locust 从节点服务   |
++---------------------+     +---------------------+     +---------------------+
+```
+
+* 启动命令
+
+```shell
+swarm -f my_locustfile.py --loadgen-list  192.168.0.5,192.168.0.153  --users 50 --host https://www.baidu.com
+```
+
+有关更多详细信息，请参见locust-swarm。
+
+https://github.com/SvenskaSpel/locust-swarm
+
+> 1. swarm 需要能够从控制节点通过 SSH 无密码连接到主节点和从节点。
+> 2. swarm 更建议用docker的方式管理。
+
+__分布式负载生成选项__
+
+* `--master-host <hostname or ip>`
+可选地与`--worker`一起使用，以设置主节点的主机名/IP（默认为localhost）。
+
+* `--master-port <port number>`
+可选地与`--worker`一起使用，以设置主节点的端口号（默认为5557）。
+
+* `--master-bind-host <ip>`
+可选地与`--master`一起使用。确定主节点将绑定到哪个网络接口。默认为*（所有可用接口）。
+
+* `--master-bind-port <port number>`
+可选地与`--master`一起使用。确定主节点将监听哪些网络端口。默认为5557。
+
+* `--expect-workers <number of workers>`
+在以`--headless`启动主节点时使用。主节点将在X个工作节点连接后等待，然后才开始测试。
+
+__提高Locust的性能__
+
+如果你计划运行大规模负载测试，可能会对使用Locust附带的替代HTTP客户端感兴趣。你可以在这里阅读更多信息：使用更快的HTTP客户端提高性能。
+
