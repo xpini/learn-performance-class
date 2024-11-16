@@ -1092,15 +1092,243 @@ __locust 分布式__
 1. 局域网，相互可ping的通过。
 2. 需要启动`master` 和 `worker`。
 
-
 __locust 分布式__
 
 1. 不要求网络，必须 SSH 无密码登录。
 2. 只需要 master 控制脚本执行。
 
+## 更快快的HTTP客户端
 
-## 提高Locust的性能
+Locust的默认HTTP客户端使用的是python-requests。
 
-如果你计划运行大规模负载测试，可能会对使用Locust附带的替代HTTP客户端感兴趣。你可以在这里阅读更多信息：使用更快的HTTP客户端提高性能。
+它提供了一个许多Python开发者都熟悉的良好API，并且维护得非常好。但是，如果您计划以非常高的吞吐量运行测试，并且运行Locust的硬件有限，它有时可能不够高效。
+
+因此，Locust还提供了`FastHttpUser`，它使用的是geventhttpclient。
+
+GitHub地址：https://github.com/geventhttpclient/geventhttpclient
+
+它提供了一个非常相似的API，并且使用的CPU时间要少得多，有时可以在相同的硬件上将每秒请求的最大数量提高5倍至6倍。
+
+在最佳情况下（在`while True`循环中进行小请求），一个Locust进程（限制在一个CPU核心）可以使用FastHttpUser每秒处理大约**16000个请求，而使用HttpUser则为4000个**（在2021年M1 MacBook Pro和Python 3.11上测试）。
+
+对于更大的请求负载，相对改进可能更大，但如果您的测试正在进行与请求无关的CPU密集型操作，改进也可能更小。
+
+当然，在现实中，您应该每个CPU核心运行一个Locust进程。
+
+注意：
+
+只要你的负载生成器CPU没有过载，FastHttpUser的响应时间应该与HttpUser几乎相同。它不会使单个请求更快。
+
+### 使用FastHttpUser
+
+只需将FastHttpUser而不是HttpUser作为子类即可：
+
+```python
+from locust import task, FastHttpUser
+
+class MyUser(FastHttpUser):
+    @task
+    def index(self):
+        response = self.client.get("/")
+```
+
+### 并发性
+
+一个FastHttpUser/geventhttpclient会话可以运行并发请求，只需要为每个请求启动greenlets：
+
+```python
+import gevent
+from gevent import monkey
+monkey.patch_all()
+
+from locust import task, FastHttpUser
+
+class MyUser(FastHttpUser):
+    @task
+    def index(self):
+        def concurrent_request(url):
+            self.client.get(url)
+
+        pool = gevent.pool.Pool()
+        urls = ["/url1", "/url2", "/url3"]
+        for url in urls:
+            pool.spawn(concurrent_request, url)
+        pool.join()
+```
+
+__注意__
+
+> FastHttpUser/geventhttpclient与HttpUser/python-requests非常相似，但有时存在微妙的差异。这尤其适用于您使用客户端库的内部功能时，例如手动管理cookie。
+
+### REST
+
+FastHttpUser提供了一个`rest`方法，用于测试REST/JSON HTTP接口。它是`self.client.request`的包装器：
+
+- 将JSON响应解析为名为`js`的字典，包含在响应对象中。如果响应不是有效的JSON，则将请求标记为失败。
+
+- 默认将`Content-Type`和`Accept`头设置为`application/json`
+
+- 设置`catch_response=True`（因此总是使用with块）
+
+- 捕获在您的with块内抛出的任何未处理异常，将样本标记为失败（而不是在没有触发请求事件的情况下立即退出任务）
+
+```python
+from locust import task, FastHttpUser
+
+class MyUser(FastHttpUser):
+    @task
+    def t(self):
+        with self.rest("POST", "/", json={"foo": 1}) as resp:
+            if resp.js is None:
+                pass # 无需做任何事情，已经标记为失败
+            elif "bar" not in resp.js:
+                resp.failure(f"'bar' missing from response {resp.text}")
+            elif resp.js["bar"] != 42:
+                resp.failure(f"'bar' had an unexpected value: {resp.js['bar']}")
+```
+
+有关完整示例，请参见rest.py。它还展示了如何使用继承来提供特定于您的REST API的行为，这些行为对于多个请求/测试计划是通用的。
+
+__注意__
+
+> 这个功能是新的，其接口/实现的细节可能在Locust的新版本中会有所变化。
+
+### 连接处理
+
+默认情况下，用户将重用相同的TCP/HTTP连接（除非它以某种方式中断）。为了更真实地模拟新浏览器连接到您的应用程序，可以手动关闭此连接。
+
+```python
+@task
+def t(self):
+    self.client.client.clientpool.close() # self.client.client不是拼写错误
+    self.client.get("/")                  # 这里将创建一个新的连接
+```
 
 
+## 扩展插件
+
+locust 通过插件支持负载测试其他协议，报告等
+
+GitHub: https://github.com/SvenskaSpel/locust-plugins/
+
+* 请求记录和绘图
+* 新的协议，如websockets， selenium/webdriver，加载HTML页面资源的HTTP用户
+* 读取器（在测试中获取测试数据的方法）
+* 等待时间（自定义等待时间函数）
+* 调试（支持在调试器中运行单个用户）
+* 检查（添加命令行参数，根据请求/秒、错误百分比和平均响应时间设置蝗虫退出代码）以上翻译结果来自有道神经网络翻译（YNMT）· 通用场景
+
+
+__支持的协议:__
+
+* Playwright (example)
+* WebSockets/SocketIO (example)
+* Selenium/Webdriver (example)
+* HTTP users that load html page resources (example)
+* Kafka (example)
+* MqttUser (example)
+* RestUser has been removed, as it is now part of locust core!
+* FtpUser (example_upload, example_download)
+
+
+__提供在测试中获取测试数据的方法:__
+
+* CSV（示例，源代码）
+* MongoDB（示例，源代码）
+
+
+## locust UI性能指标和报告
+
+### statistics（统计）
+
+![](../images/statistics.png)
+
+在 Locust 的 **Statistics** 表格中，各个指标的含义如下：
+
+**Type**  
+   - 表示 HTTP 请求的类型，例如 `GET`、`POST`、`PUT`、`DELETE` 等。
+
+**Name**  
+   - 表示请求的名称或路径。在这里，`/` 表示根路径（首页）。
+
+**# Requests**  
+   - 表示请求的总数。  
+
+**# Fails**  
+   - 表示失败的请求数。  
+   - 失败可能是由于 HTTP 错误代码（例如 500、404）或超时等问题。这里有 `131` 个失败请求。
+
+**Median (ms)**  
+   - 中位数响应时间，表示 50% 的请求的响应时间低于这个值。  
+
+**95%ile (ms)**  
+   - 95% 分位响应时间，表示 95% 的请求响应时间低于这个值。  
+
+**99%ile (ms)**  
+   - 99% 分位响应时间，表示 99% 的请求响应时间低于这个值，剩余 1% 的请求可能是异常或慢请求。  
+
+**Average (ms)**  
+   - 平均响应时间。所有请求响应时间的总和除以请求数量。  
+
+**Min (ms)**  
+   - 最短响应时间。  
+
+**Max (ms)**  
+   - 最长响应时间。  
+
+**Average size (bytes)**  
+   - 每个响应的平均大小（字节）。  
+
+**Current RPS (Requests Per Second)**  
+   - 当前每秒发送的请求数（吞吐量）。  
+
+**Current Failures/s**  
+   - 当前每秒失败的请求数。  
+
+### charts (图表)
+
+![](../images/charts.png)
+
+**Total requests per second**  
+   - 每秒总请求数。  
+
+**Response Times**  
+   - 响应时间。
+   -  50th percentile: 50% 分位响应时间。
+   -  95th percentile: 95% 分位响应时间。
+
+**Number of Users**  
+   - 用户数量。  
+
+### failures (失败)
+
+![](../images/failures.png)
+
+失败请求的数量以及错误类型。
+
+> RemoteDisconnected('Remote end closed connection without response') : 远程服务器在没有发送任何响应的情况下关闭了连接
+
+### exceptions (异常)
+
+![](../images/exeptions.png)
+
+性能压测脚本的错误异常。
+
+### current ration (当前比例)
+
+![](../images/current_ration.png)
+
+在多个任务的情况下，可以看到用户的分配比例。
+
+### download data (下载数据)
+
+![](../images/download_data.png)
+
+locust 支持的报告类型。
+
+
+### logs (日志)
+
+![](../images/logs.png)
+
+locust 的日志信息。
