@@ -419,3 +419,6 @@ __响应时间过程分析__
 
 * [locust](./tools/locust.md)
 
+### 命令行压测工具
+
+* [locust](./tools/command_line_tool.md)
