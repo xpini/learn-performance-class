@@ -251,7 +251,7 @@ Usage: vegeta [global flags] <command> [command flags]
 **参数说明**：
 
 ```shell
-ab --help
+vegeta --help
 ```
 
 
@@ -312,6 +312,18 @@ ab --help
 
 ### 示例
 
+**常用参数说明**
+
+```shell
+vegeta attack -rate=100 -duration=30s -targets=targets.txt | vegeta report
+vegeta attack -max-workers=100 -rate=0 -duration=10s -targets=targets.txt | vegeta report
+```
+`-rate=100`：每秒发送 100 个请求。
+`-max-workers=100`：指定攻击中使用的最大worker数。它可以用来控制攻击所使用的并发级别。 配合`-rate=0`使用
+`-duration=30s`：测试持续 30 秒。
+`-targets=targets.txt`：指定目标文件。
+
+
 **1. 简单的`GET`接口**
 
 
@@ -326,10 +338,6 @@ GET http://192.168.0.5:5000/
 ```shell
 vegeta attack -rate=100 -duration=30s -targets=targets.txt | vegeta report
 ```
-
-`-rate=100`：每秒发送 100 个请求。
-`-duration=30s`：测试持续 30 秒。
-`-targets=targets.txt`：指定目标文件。
 
 **2. 简单的`POST`带参数接口**
 
@@ -386,8 +394,6 @@ Bucket         #     %       Histogram
 ```
 
 计算并打印给定`Bucket`的基于文本的直方图。
-
-
 
 * 生成HTML报告
 
