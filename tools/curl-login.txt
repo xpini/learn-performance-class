@@ -1,0 +1,4 @@
+curl --location --request POST 'http://192.168.0.5:5000/login' \
+--header 'User-Agent: Apifox/1.0.0 (https://apifox.com)' \
+--form 'username="admin"' \
+--form 'password="a123456"'
