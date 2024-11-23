@@ -205,3 +205,196 @@ __性能结果分析__
 1. 在进行压力测试时，应确保测试环境与实际生产环境尽可能一致，以获得更准确的结果。
 2. 测试过程中可能会产生大量日志和错误信息，建议提前配置好日志存储路径和错误处理机制。
 3. 根据测试需求调整并发数和请求数等参数，以获得不同压力下的服务器性能表现。
+
+
+## Vegeta
+
+### 介绍
+
+Vegeta（贝吉塔）是一个多功能的HTTP负载测试工具，它是基于对具有恒定请求率的HTTP服务进行钻取的需求而构建的， “It is cover 9000”
+
+> “超过9000了！”，也简称为“超过9000!”，是2006年流行起来的一个网络梗，与1997年4月19日播出的《龙珠Z》动画电视连续剧《悟空归来》的一集的英语本地化有关。这个短语通常用作无数量词来描述大量的东西。这个短语的变体也被用作一种形式的trolling。
+> 这个短语指的是赛亚人角色贝吉塔用日语说出的原始台词的变化，演员布莱恩·德拉蒙用英语配音
+
+![](../images/vegeta_logo.jpg)
+
+
+### 安装
+
+> 注：vegeta 不支持Windows。
+
+* 下载
+
+https://github.com/tsenart/vegeta/releases
+
+* 解压之后得到可执行文件。
+
+* 拷贝到环境变量配置目录。
+
+```shell
+which vegeta
+/usr/bin/vegeta
+```
+
+### 命令
+
+
+**基本命令格式**：
+
+```shell
+Usage: vegeta [global flags] <command> [command flags]
+```
+
+其中，`[global flags]`全局标签，可选项；`<command>[command flags]` 命令以及对应的参数。
+
+
+**参数说明**：
+
+```shell
+ab --help
+```
+
+
+以下是根据 `vegeta --help` 的输出整理的 `vegeta` 压测工具的参数说明表格：
+
+|        命令/参数        |                         说明                         |            默认值            |
+| :---------------------: | :--------------------------------------------------: | :--------------------------: |
+|    **global flags**     |                                                      |                              |
+|        -cpus int        |                    使用的CPU数量                     |              16              |
+|     -profile string     |              启用[cpu, heap]的性能分析               |              无              |
+|        -version         |                    打印版本并退出                    |              无              |
+|   **attack command**    |                                                      |                              |
+|      -body string       |                      请求体文件                      |              无              |
+|      -cert string       |              TLS客户端PEM编码的证书文件              |              无              |
+|        -chunked         |              使用分块传输编码发送请求体              |              无              |
+|    -connect-to value    |    要使用的(ip or host):port的映射而不是目标URL (ip or host):port。可以重复多次。  | 无 |
+|    -connections int     |             每个目标主机的最大空闲连接数             |            10000             |
+|     -dns-ttl value      |      缓存DNS查找的持续时间[-1 = 禁用, 0 = 永远]      |              0s              |
+|   -duration duration    |                测试持续时间[0 = 永远]                |              无              |
+|     -format string      |                 目标格式[http, json]                 |            "http"            |
+|          -h2c           |             发送不带TLS加密的HTTP/2请求              |              无              |
+|      -header value      |                        请求头                        |              无              |
+|         -http2          |             当服务器支持时发送HTTP/2请求             |             true             |
+|        -insecure        |               忽略无效的服务器TLS证书                |              无              |
+|       -keepalive        |                     使用持久连接                     |             true             |
+|       -key string       |              TLS客户端PEM编码的私钥文件              |              无              |
+|      -laddr value       |                      本地IP地址                      |           0.0.0.0            |
+|          -lazy          |                     延迟读取目标                     |              无              |
+|     -max-body value     |       从响应体中捕获的最大字节数[-1 = 无限制]        |              -1              |
+|  -max-connections int   |               每个目标主机的最大连接数               |              无              |
+|    -max-workers uint    |                      最大工作数                      |     18446744073709551615     |
+|      -name string       |                       攻击名称                       |              无              |
+|     -output string      |                       输出文件                       |           "stdout"           |
+| -prometheus-addr string |         Prometheus导出器监听地址[空 = 禁用]          |              无              |
+|   -proxy-header value   |                   Proxy CONNECT头                    |              无              |
+|       -rate value       |             每时间单位的请求数[0 = 无限]             |            50/1s             |
+|     -redirects int      |     要跟随的重定向次数。-1表示不跟随但标记为成功     |              10              |
+|    -resolvers value     |   用于DNS解析的地址列表(ip:port)。禁用本地系统DNS    |              无              |
+|    -root-certs value    |             TLS根证书文件(逗号分隔列表)              |              无              |
+|    -session-tickets     |            启用使用会话票据的TLS会话恢复             |              无              |
+|     -targets string     |                       目标文件                       |           "stdin"            |
+|    -timeout duration    |                       请求超时                       |             30s              |
+|   -unix-socket string   |   通过Unix套接字连接。这会覆盖目标URL中的主机地址    |              无              |
+|      -workers uint      |                      初始工作数                      |              10              |
+|   **encode command**    |                                                      |                              |
+|     -output string      |                       输出文件                       |           "stdout"           |
+|       -to string        |               输出编码[csv, gob, json]               |            "json"            |
+|    **plot command**     |                                                      |                              |
+|     -output string      |                       输出文件                       |           "stdout"           |
+|     -threshold int      |        数据点阈值，超过该阈值的系列会被下采样        |             4000             |
+|      -title string      |              生成的HTML页面的标题和页眉              |        "Vegeta Plot"         |
+|   **report command**    |                                                      |                              |
+|     -buckets string     |            直方图桶，例如: "[0,1ms,10ms]"            |              无              |
+|     -every duration     |                       报告间隔                       |              无              |
+|     -output string      |                       输出文件                       |           "stdout"           |
+|      -type string       | 要生成的报告类型[text, json, hist[buckets], hdrplot] |            "text"            |
+
+
+### 示例
+
+**1. 简单的`GET`接口**
+
+
+* 请求脚本：`targets.txt`
+
+```txt
+GET http://192.168.0.5:5000/
+```
+
+* 执行命令
+
+```shell
+vegeta attack -rate=100 -duration=30s -targets=targets.txt | vegeta report
+```
+
+`-rate=100`：每秒发送 100 个请求。
+`-duration=30s`：测试持续 30 秒。
+`-targets=targets.txt`：指定目标文件。
+
+**2. 简单的`POST`带参数接口**
+
+* 请求脚本：`targets.txt`
+
+```txt
+POST http://192.168.0.5:5000/login
+content-type: application/json
+@/home/fnngj/tools/load-testing/user.json
+```
+
+* 参数文件：`user.json`
+
+```json
+{"username": "admin", "password": "a123456"}
+```
+
+* 执行命令
+
+```shell
+vegeta attack -rate=100 -duration=30s -targets=targets2.txt | vegeta report
+```
+
+**3. 生成报告**
+
+* 生成bin文件
+
+```shell
+vegeta attack -connections=100 -duration=60s -targets=targets.txt > results.bin
+```
+
+* 生成JSON报告
+
+```shell
+vegeta report -type=json results.bin > results.json
+```
+
+* 生成txt报告
+
+```shell
+vegeta report -type=text results.bin > results.txt
+```
+
+* 生成直方图
+
+```shell
+cat results.bin | vegeta report -type='hist[0,2ms,4ms,6ms]'
+
+Bucket         #     %       Histogram
+[0s,    2ms]   0     0.00%
+[2ms,   4ms]   1384  92.27%  #####################################################################
+[4ms,   6ms]   99    6.60%   ####
+[6ms,   +Inf]  17    1.13%
+```
+
+计算并打印给定`Bucket`的基于文本的直方图。
+
+
+
+* 生成HTML报告
+
+```
+cat results.bin | vegeta plot > plot.html
+```
+
+> 拷贝到Windows下：cp plot.html /mnt/d/github/AutoTestClass/learn-performance-class/package/plot.html
+
+![](../images/vegeta-plot.png)

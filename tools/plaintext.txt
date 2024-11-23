@@ -1,0 +1,5 @@
+GET http://192.168.0.5:5000/
+
+POST http://192.168.0.5:5000/login
+content-type: application/json
+@/home/fnngj/tools/load-testing/user.json
