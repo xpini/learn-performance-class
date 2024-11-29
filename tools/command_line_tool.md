@@ -341,7 +341,6 @@ which vegeta
 
 ### 命令
 
-
 **基本命令格式**：
 
 ```shell
@@ -350,13 +349,11 @@ Usage: vegeta [global flags] <command> [command flags]
 
 其中，`[global flags]`全局标签，可选项；`<command>[command flags]` 命令以及对应的参数。
 
-
 **参数说明**：
 
 ```shell
 vegeta --help
 ```
-
 
 以下是根据 `vegeta --help` 的输出整理的 `vegeta` 压测工具的参数说明表格：
 
@@ -418,14 +415,14 @@ vegeta --help
 **常用参数说明**
 
 ```shell
-vegeta attack -rate=100 -duration=30s -targets=targets.txt | vegeta report
+vegeta attack -rate=100 -duration=10s -targets=targets.txt | vegeta report
 vegeta attack -max-workers=100 -rate=0 -duration=10s -targets=targets.txt | vegeta report
 ```
+
 `-rate=100`：每秒发送 100 个请求。
 `-max-workers=100`：指定攻击中使用的最大worker数。它可以用来控制攻击所使用的并发级别。 配合`-rate=0`使用
-`-duration=30s`：测试持续 30 秒。
+`-duration=10s`：测试持续 10 秒。
 `-targets=targets.txt`：指定目标文件。
-
 
 **1. 简单的`GET`接口**
 
@@ -433,21 +430,38 @@ vegeta attack -max-workers=100 -rate=0 -duration=10s -targets=targets.txt | vege
 * 请求脚本：`targets.txt`
 
 ```txt
-GET http://192.168.0.5:5000/
+GET http://192.168.31.238:5000/add_one
 ```
 
 * 执行命令
 
 ```shell
-vegeta attack -rate=100 -duration=30s -targets=targets.txt | vegeta report
+vegeta attack -rate=100 -duration=10s -targets=targets.txt | vegeta report
 ```
 
-**2. 简单的`POST`带参数接口**
+
+**2. 简单的`GET`接口，带参数**
 
 * 请求脚本：`targets.txt`
 
 ```txt
-POST http://192.168.0.5:5000/login
+GET http://192.168.31.238:5000//user/tom
+
+GET http://192.168.31.238:5000/search/?q=selenium
+```
+
+* 执行命令
+
+```shell
+vegeta attack -rate=1 -duration=1s -targets=targets.txt | vegeta report
+```
+
+**3. 简单的`POST`带JSON格式的参数接口**
+
+* 请求脚本：`targets2.txt`
+
+```txt
+POST http://192.168.31.238:5000/add_user
 content-type: application/json
 @/home/fnngj/tools/load-testing/user.json
 ```
@@ -455,16 +469,40 @@ content-type: application/json
 * 参数文件：`user.json`
 
 ```json
-{"username": "admin", "password": "a123456"}
+{"name": "jack", "age": 22, "height": 177}
 ```
 
 * 执行命令
 
 ```shell
-vegeta attack -rate=100 -duration=30s -targets=targets2.txt | vegeta report
+vegeta attack -rate=1 -duration=1s -targets=targets2.txt | vegeta report
 ```
 
-**3. 生成报告**
+**4. 简单的`POST`带x-www-from-urlencode参数接口**
+
+* 请求脚本：`targets3.txt`
+
+```txt
+ cat targets3.txt
+POST http://192.168.31.238:5000/login
+content-type: application/x-www-form-urlencoded
+@/home/fnngj/tools/load-testing/user.txt
+```
+
+* 参数文件：`user.txt`
+
+```txt
+username=admin&password=a123456
+```
+> 注：这里有哥坑，字符串末尾会带\n
+
+* 执行命令
+
+```shell
+vegeta attack -rate=1 -duration=1s -targets=targets3.txt | vegeta report
+```
+
+**5. 生成报告**
 
 * 生成bin文件
 
