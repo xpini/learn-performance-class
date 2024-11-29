@@ -48,7 +48,6 @@ ab [options] [http[s]://]hostname[:port]/path
 其中，`[options]`代表各种可选参数，用于配置测试的具体细节；`[http[s]://]hostname[:port]/path`代表要测试的HTTP（或HTTPS）服务器的地址、端口和路径。
 
 
-
 **参数说明**：
 
 ```shell
@@ -92,20 +91,122 @@ ab --help
 | `-h`              | 显示使用信息（此消息）                                                                              |
 
 
+**常用参数**
+
+`-n`: 请求的总数。
+`-c`: 每次并发用户数。
+`-t`: 测试所用的最大时间。
+
+
 **示例**
 
-* 模拟10个并发用户，每个用户发送100个请求到`http://testurl.com/xxxx`：
-	
+* 限制总请求数据为 1000，并发用户数为10。
+
 ```shell
 ab -n 1000 -c 10 http://127.0.0.1:5000/add_one
-ab -n 1000 -t 30S http://127.0.0.1:5000/add_one
 ```
 
-* 使用POST方法发送数据，数据存储在`post_data.txt`文件中，并设置Content-type为`application/json`：
-	
+* 限制请求时间为10s，并发用户数为10。
+
 ```shell
-ab -n 100 -c 10 -p .\tools\post_data.txt -T 'application/json' http://127.0.0.1:5000/login
+ab  -t 10s -c 10 http://127.0.0.1:5000/add_one
 ```
+
+* GET请求带参数
+
+```shell
+ab -n 1 -c 1  http://127.0.0.1:5000//user/tom
+ab -n 1 -c 1 http://127.0.0.1:5000/search/?q=selenium
+```
+
+* POST请求带参数，`x-www-from-urlencded`数据格式。
+
+`post_data.txt`
+
+```txt
+username=admin&password=a123456
+```
+
+```shell
+ab -c 1 -n 1 -p ./scripts/post_data.txt -T "application/x-www-form-urlencoded" http://127.0.0.1:5000/login
+```
+
+* POST请求带参数，`JSON`数据格式。
+
+`post_json.txt`
+
+```json
+{"name": "jack", "age": 22, "height": 177}
+```
+
+```shell
+ab -c 1 -n 1 -p ./scripts/post_json.txt -T "application/json" http://127.0.0.1:5000/add_user
+```
+
+* 生成HTML文件。
+
+```shell
+ab  -t 10s -c 10  -w  http://127.0.0.1:5000/add_one
+
+<p>
+ This is ApacheBench, Version 2.3 <i>&lt;$Revision: 1913912 $&gt;</i><br>
+ Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/<br>
+ Licensed to The Apache Software Foundation, http://www.apache.org/<br>
+</p>
+<p>
+Completed 5000 requests
+Finished 6234 requests
+
+
+<table >
+<tr ><th colspan=2 bgcolor=white>Server Software:</th><td colspan=2 bgcolor=white>Werkzeug/3.1.3</td></tr>
+<tr ><th colspan=2 bgcolor=white>Server Hostname:</th><td colspan=2 bgcolor=white>127.0.0.1</td></tr>
+<tr ><th colspan=2 bgcolor=white>Server Port:</th><td colspan=2 bgcolor=white>5000</td></tr>
+<tr ><th colspan=2 bgcolor=white>Document Path:</th><td colspan=2 bgcolor=white>/add_one</td></tr>
+<tr ><th colspan=2 bgcolor=white>Document Length:</th><td colspan=2 bgcolor=white>77 bytes</td></tr>
+<tr ><th colspan=2 bgcolor=white>Concurrency Level:</th><td colspan=2 bgcolor=white>10</td></tr>
+<tr ><th colspan=2 bgcolor=white>Time taken for tests:</th><td colspan=2 bgcolor=white>10.005 seconds</td></tr>
+<tr ><th colspan=2 bgcolor=white>Complete requests:</th><td colspan=2 bgcolor=white>6234</td></tr>
+<tr ><th colspan=2 bgcolor=white>Failed requests:</th><td colspan=2 bgcolor=white>6225</td></tr>
+<tr ><td colspan=4 bgcolor=white >   (Connect: 0, Length: 6225, Exceptions: 0)</td></tr>
+<tr ><th colspan=2 bgcolor=white>Total transferred:</th><td colspan=2 bgcolor=white>1528428 bytes</td></tr>
+<tr ><th colspan=2 bgcolor=white>HTML transferred:</th><td colspan=2 bgcolor=white>498333 bytes</td></tr>
+<tr ><th colspan=2 bgcolor=white>Requests per second:</th><td colspan=2 bgcolor=white>623.11</td></tr>
+<tr ><th colspan=2 bgcolor=white>Transfer rate:</th><td colspan=2 bgcolor=white>149.19 kb/s received</td></tr>
+<tr ><th bgcolor=white colspan=4>Connection Times (ms)</th></tr>
+<tr ><th bgcolor=white>&nbsp;</th> <th bgcolor=white>min</th>   <th bgcolor=white>avg</th>   <th bgcolor=white>max</th></tr>
+<tr ><th bgcolor=white>Connect:</th><td bgcolor=white>    0</td><td bgcolor=white>    0</td><td bgcolor=white>    1</td></tr>
+<tr ><th bgcolor=white>Processing:</th><td bgcolor=white>   14</td><td bgcolor=white>   16</td><td bgcolor=white>   46</td></tr>
+<tr ><th bgcolor=white>Total:</th><td bgcolor=white>   14</td><td bgcolor=white>   16</td><td bgcolor=white>   47</td></tr>
+</table>
+```
+
+* 生成详细测试结果。
+
+```shell
+ab  -t 10s -c 10 -g output.txt  http://127.0.0.1:5000/add_one
+```
+
+`output.txt`文件内功:
+
+```
+starttime	seconds	ctime	dtime	ttime	wait
+Fri Nov 29 19:01:56 2024	1732878116	0	13	13	3
+Fri Nov 29 19:02:04 2024	1732878124	0	14	14	3
+Fri Nov 29 19:02:03 2024	1732878123	0	14	14	3
+Fri Nov 29 19:02:00 2024	1732878120	0	14	14	3
+Fri Nov 29 19:01:56 2024	1732878116	0	14	14	3
+...
+```
+
+* 生成CSV文件。
+
+```shell
+ab  -t 10s -c 10 -e output.csv  http://127.0.0.1:5000/add_one
+```
+
+![](../images/ab_output_csv.png)
+
 
 **测试结果**
 
