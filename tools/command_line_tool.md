@@ -180,6 +180,11 @@ Finished 6234 requests
 <tr ><th bgcolor=white>Total:</th><td bgcolor=white>   14</td><td bgcolor=white>   16</td><td bgcolor=white>   47</td></tr>
 </table>
 ```
+将结果从控制台拷贝到 `ab_output.html` 文件保存，并通过浏览器打开。
+
+![](../images/ab_output_html.png)
+
+> 太丑了，我要不加哥浏览器边框，你都看不出来是HTML页面。
 
 * 生成详细测试结果。
 
@@ -187,7 +192,7 @@ Finished 6234 requests
 ab  -t 10s -c 10 -g output.txt  http://127.0.0.1:5000/add_one
 ```
 
-`output.txt`文件内功:
+`output.txt`文件内容:
 
 ```
 starttime	seconds	ctime	dtime	ttime	wait
