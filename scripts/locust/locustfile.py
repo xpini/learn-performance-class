@@ -7,6 +7,7 @@ from locust import HttpUser, task, between
 
 
 class QuickstartUser(HttpUser):
+    # 用户登入等待时间
     wait_time = between(1, 5)
 
     @task
